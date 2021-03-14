@@ -217,7 +217,7 @@ public class CrawlerMain {
         return resultList;
     }
 
-
+/*
     public static void main(String[] args){
         CrawlerMain crawlerMain = new CrawlerMain();
         List resultList = crawlerMain.getKospiData("kosdaq",1);
@@ -229,5 +229,5 @@ public class CrawlerMain {
             }
         }
     }
-
+*/
 }
