@@ -1,0 +1,157 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Main</title>
+    <script type="text/javascript" th:src="@{/static/js/jquery/jquery-2.1.4.js}"></script>
+    <script type="text/javascript" th:src="@{/static/js/keap.js}"></script>
+
+
+    <script type="text/javascript" th:inline="javascript">
+		/*<![CDATA[*/
+		    var exePolling = true;
+		    var globalCnt = 0;
+            function poll(){
+                                if(exePolling){
+                                    $.ajax({
+                                               url: "/volumeCnt.do",
+                                               success: function(data){
+                                                    // 일정 주기로 갱신하고 싶은 코드
+                                                    var persent = 100 - Math.floor((data / globalCnt) * 100);
+                                                    document.getElementById("view").innerHTML = persent +"%";
+
+                                                    if(data == 0){
+                                                        exePolling = false;
+
+                                                        //getRecommend();
+
+                                                        getResult();
+                                                    }
+                                               },
+                                               dataType: "json",
+                                               timeout: 3000,
+                                               complete: setTimeout(function() { poll(); }, 1000)
+                                           });
+                                }
+            }
+
+            function sleep(ms) {
+              const wakeUpTime = Date.now() + ms
+              while (Date.now() < wakeUpTime) {}
+            }
+
+            function start(algorithm){
+                globalCnt = $.sendData("/volumeStart.do?algorithm="+algorithm, null);
+                console.log("종목수 ::" + globalCnt);
+
+                exePolling = true;
+                poll();
+            }
+
+            function stop(){
+                exePolling = false;
+                var cnt = $.sendData("/volumeStop.do", null);
+
+                console.log("종료 ::" + cnt);
+            }
+
+
+            function getRecommend(){
+                sleep(5000);
+                var result = $.sendData("/getAlgorithm001.do", null);
+                console.clear();
+                console.log("추천결과 ::" + result);
+
+                var html = "";
+                for (var i=0; i<result.length; i++) {
+                    var 기업명 = result[i]["기업명"];
+                    var 종목코드 = result[i]["종목코드"];
+                    var 날짜 = result[i]["날짜"];
+                    var 금액 = result[i]["금액"];
+
+                    html += 기업명 +":<a href='https://finance.naver.com/item/fchart.nhn?code="+종목코드+"' target='_blank'>"+종목코드+"</a>:" +날짜+":"+금액 + "<br>";
+                }
+
+                document.getElementById("reCommendList").innerHTML = html
+            }
+
+
+            function getResult(){
+                var result = $.sendData("/getResult.do", null);
+
+                //종목코드, 종료유무, 추천일자, 시작일자, 추천금액, 시작금액, 진행일자, 수익률, 진행금액
+                var html = "";
+                for (var i=0; i<result.length; i++) {
+                    var 종목코드 = result[i]["종목코드"];
+                    var 종목명 = result[i]["종목명"];
+
+                    html += "<a href='https://finance.naver.com/item/fchart.nhn?code="+종목코드+"' target='_blank'>"+종목명+"</a>:";
+                    html += "<br>";
+                }
+
+                document.getElementById("resultList").innerHTML = html
+            }
+
+            function todayRising(){
+
+                var type = $("select[name=type]").val();
+
+                var sDate = $("input[name=sDate]").val();
+                var eDate = $("input[name=eDate]").val();
+
+                var result = $.sendData("/selectTodayRising.do?type="+type+"&sDate="+sDate+"&eDate="+eDate, null);
+                var html = "";
+                for (var i=0; i<result.length; i++) {
+                    var 종목코드 = result[i]["종목코드"];
+                    var 기업명 = result[i]["기업명"];
+                    var PERSENT = result[i]["PERSENT"];
+                    html += "<input type='checkbox' name='toDayData' value='"+종목코드+"' \>";
+                    html += "<a href='https://finance.naver.com/item/fchart.nhn?code="+종목코드+"' target='_blank'>"+기업명+"</a>:"+PERSENT +"%";
+                    html += "<br>";
+                }
+                document.getElementById("resultList").innerHTML = html
+            }
+
+            function showChart(){
+                var param = "";
+                $('input:checkbox[name="toDayData"]').each(function() {
+                    if(this.checked){//checked 처리된 항목의 값
+                        param += this.value+",";
+                    }
+                });
+
+                var type = $("select[name=type]").val();
+
+                var sDate = $("input[name=sDate]").val();
+                var eDate = $("input[name=eDate]").val();
+
+                var url = "/chart.html?param="+param+"&type="+type+"&sDate="+sDate+"&eDate="+eDate;
+                window.open(url)
+            }
+		/*]]>*/
+	</script>
+</head>
+<body>
+    오늘 거래량 가저오기 : <a href="#" onclick="javascript:start('')">실행</a> <a href="#" onclick="javascript:stop()">종료</a>
+    진행률 :: <div id="view"></div>
+    <!--
+    <br>W알고리즘 데이터 가져오기 : <a href="#" onclick="javascript:start('W001')">실행</a> <a href="#" onclick="javascript:stop()">종료</a>
+    //-->
+    <br>
+    <div>
+        <select name="type">
+            <option value="KOSPI200">KOSPI200</option>
+            <option value="KOSPI">KOSPI</option>
+            <option value="KOSDAQ">KOSDAQ</option>
+        </select>
+        조회날짜 <input type="text" name="sDate" th:value="${sDate}"> ~ <input type="text" name="eDate" th:value="${eDate}">
+    </div>
+    <a href="#" onclick="javascript:todayRising()">주식데이터보기</a><a href="#" onclick="javascript:showChart()">[차트로보기]</a>
+
+    <h1>오늘의 추천종목</h1>
+    <DIV id="reCommendList"></DIV>
+
+    <h1>추천종목 결과</h1>
+    <div id="resultList"></div>
+</body>
+</html>

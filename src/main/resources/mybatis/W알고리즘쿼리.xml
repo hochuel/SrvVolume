@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.srv.main.dao.WalgorithmDao">
+
+    <select id="selectBeforMaxData" resultType="java.util.Map" parameterType="java.util.Map">
+        <![CDATA[
+        SELECT DISTINCT 종가, MAX(날짜) AS 날짜
+          FROM 거래량
+        WHERE 종목코드 = #{종목코드}
+          AND 날짜 BETWEEN DATE_FORMAT(DATE_ADD(STR_TO_DATE(#{날짜},'%Y%m%d'), INTERVAL -1 WEEK), '%Y%m%d') AND #{날짜}
+          AND 종가 > #{종가}
+        ]]>
+    </select>
+
+    <select id="selectMinData" parameterType="java.util.Map" resultType="java.util.Map">
+        <![CDATA[
+        /*3. (2)에서 찾읒 데이터 날짜와 종가를 가져온다. */
+        SELECT DISTINCT 종가, MIN(날짜) AS 날짜
+          FROM 거래량
+         WHERE 종목코드 = #{종목코드}
+           AND 날짜 BETWEEN DATE_FORMAT(date_add(now(),INTERVAL -1 MONTH), '%Y%m%d') AND DATE_FORMAT(NOW(), '%Y%m%d')
+           AND 종가 = (
+                        /*2. 한달사이 현재 종가보다 제일작은 데이터를 찾는다. */
+                        SELECT MIN(종가)
+                          FROM 거래량
+                         WHERE 종목코드 = #{종목코드}
+                           AND 날짜 BETWEEN DATE_FORMAT(date_add(now(),INTERVAL -1 MONTH), '%Y%m%d') AND DATE_FORMAT(NOW(), '%Y%m%d')
+                           AND 종가 < (
+                                        /*1. 현재 종가를 찾는다*/
+                                        SELECT 종가
+                                          FROM 거래량
+                                          WHERE 종목코드 = #{종목코드}
+                                            AND 날짜 = (SELECT MAX(날짜) FROM 거래량 WHERE 종목코드 = #{종목코드})
+                                      )
+                       )
+        ]]>
+    </select>
+
+
+    <select id="selectMaxMiddleData" parameterType="java.util.Map" resultType="java.util.Map">
+        <![CDATA[
+        SELECT DISTINCT 종가, MAX(날짜) AS 날짜
+          FROM 거래량
+          WHERE 종목코드 = #{종목코드}
+            AND 날짜 BETWEEN #{날짜} AND DATE_FORMAT(date_add(now(),INTERVAL -2 WEEK), '%Y%m%d')
+            AND 종가 = (
+						SELECT MAX(종가)
+						  FROM 거래량
+						  WHERE 종목코드 = #{종목코드}
+						   AND 날짜 BETWEEN #{날짜} AND DATE_FORMAT(date_add(now(),INTERVAL -2 WEEK), '%Y%m%d')
+
+					)
+        ]]>
+    </select>
+
+    <select id="selectMinMiddleData" parameterType="java.util.Map" resultType="java.util.Map">
+        <![CDATA[
+
+            SELECT DISTINCT 종가, MIN(날짜) AS 날짜
+              FROM 거래량
+              WHERE 종목코드 = #{종목코드}
+                AND 날짜 BETWEEN #{날짜} AND DATE_FORMAT(NOW(), '%Y%m%d')
+                AND 종가 = (
+                                    SELECT MIN(종가)
+                                      FROM 거래량
+                                      WHERE 종목코드 = #{종목코드}
+                                        AND 날짜 BETWEEN #{날짜} AND DATE_FORMAT(NOW(), '%Y%m%d')
+                                )
+
+        ]]>
+    </select>
+
+    <select id="selectCurrentData" parameterType="java.lang.String"  resultType="java.util.Map">
+        SELECT *
+        FROM 거래량
+        WHERE 종목코드 = #{종목코드}
+        AND 날짜 = (SELECT MAX(날짜) FROM 거래량 WHERE 종목코드 = #{종목코드})
+    </select>
+
+
+</mapper>

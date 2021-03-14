@@ -1,0 +1,127 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chart</title>
+    <script type="text/javascript" th:src="@{/static/js/jquery/jquery-2.1.4.js}"></script>
+    <script type="text/javascript" th:src="@{/static/js/keap.js}"></script>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript" th:inline="javascript">
+        /*<![CDATA[*/
+            google.charts.load('current', {packages: ['corechart', 'line']});
+            google.charts.setOnLoadCallback(drawBasic);
+
+
+            var serverType = [[${serverType}]];
+            var serverParam = [[${serverParam}]];
+
+            var sDate = [[${sDate}]];
+            var eDate = [[${eDate}]];
+
+            serverParam = serverParam.substring(0, serverParam.length - 1);
+
+            function getChartData(){
+                var result = $.sendData("/selectListChartData.do?param="+serverParam+"&type="+serverType+"&sDate="+sDate+"&eDate="+eDate, null);
+                return result;
+            }
+
+            function drawBasic() {
+                var data = new google.visualization.DataTable();
+                data.addColumn('date', 'Day');
+                data.addColumn('number', serverType);
+
+                var result = getChartData();
+
+                var dataView = [];
+
+                var paramLen = 1;
+                //console.log(JSON.stringify(result));
+                if(serverParam != ''){
+                    var temp = serverParam.split(",");
+
+                    for(var i = 0; i < temp.length; i++){
+                        var name = result[temp[i]+"_info"];
+                        data.addColumn('number', name["기업명"]);
+
+                        dataView[i] = result[temp[i]+"_data"];
+                    }
+
+                    paramLen = temp.length;
+                }
+
+                var resultList = result[serverType];
+
+                console.log(serverType +":" + JSON.stringify(resultList));
+
+                data.addRows(resultList.length);
+
+                for (var x=0; x<resultList.length; x++) {
+                    var Y1 = resultList[x]["Y1"];
+                    var M1 = resultList[x]["M1"];
+                    var D1 = resultList[x]["D1"];
+                    var 종가 = resultList[x]["종가"];
+
+                    data.setCell(x, 0, new Date(Y1, M1, D1));
+                    data.setCell(x, 1, 종가);
+                }
+
+                if(dataView != null && typeof dataView != "undefined" && dataView != ""){
+                    for(var y = 0; y < paramLen; y++){
+                        resultList = dataView[y];
+
+                        //console.log(JSON.stringify(resultList));
+
+                        for (var x = 0; x < resultList.length; x++) {
+                            var Y1 = resultList[x]["Y1"];
+                            var M1 = resultList[x]["M1"];
+                            var D1 = resultList[x]["D1"];
+                            var 종가 = resultList[x]["종가"];
+
+                            //data.setCell(x, 0, new Date(Y1, M1, D1));
+                            data.setCell(x, 2 + y, 종가);
+                        }
+                    }
+                }
+
+
+                var options = {
+                    title: '차트',
+                    width: 1500,
+                    height: 1000,
+
+                    hAxis: {
+                      title: 'Time'
+                    },
+                    vAxis: {
+                      title: 'Popularity'
+                    },
+
+                    series: {
+                            0: {targetAxisIndex: 0},
+                            1: {targetAxisIndex: 1},
+                            2: {targetAxisIndex: 2},
+                            3: {targetAxisIndex: 3},
+                            4: {targetAxisIndex: 4},
+                            5: {targetAxisIndex: 5},
+                            6: {targetAxisIndex: 6},
+                            7: {targetAxisIndex: 7},
+                            8: {targetAxisIndex: 8},
+                            9: {targetAxisIndex: 9},
+                            10: {targetAxisIndex: 10}
+
+                        }
+                };
+
+                var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+
+                chart.draw(data, options);
+            }
+
+		/*]]>*/
+	</script>
+</head>
+<body>
+    <div id="chart_div"></div>
+</body>
+</html>

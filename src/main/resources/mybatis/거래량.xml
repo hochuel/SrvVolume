@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.srv.main.dao.VolumeDao">
+    <select id="selectCompanyList" resultType="java.util.Map" parameterType="java.lang.String">
+        SELECT A.*, #{algorithm} AS 알고리즘
+          FROM 상장기업 A
+         WHERE 정지유무 = 'N'
+    </select>
+
+    <insert id="insertVolume" parameterType="java.util.Map">
+        INSERT INTO 거래량(종목코드, 날짜, 개인거래량, 기관거래량, 외국인거래량)
+                   VALUES(#{종목코드}, #{날짜}, #{개인}, #{기관계}, #{외국인계})
+        ON DUPLICATE KEY UPDATE 개인거래량 = #{개인}
+                              , 기관거래량 = #{기관계}
+                              , 외국인거래량 = #{외국인계}
+    </insert>
+
+    <update id="updateVolume" parameterType="java.util.Map">
+
+        UPDATE 거래량 SET 전일대비 = #{전일대비}
+                       , 종가 = #{종가}
+                       , 시가 = #{시가}
+                       , 고가 = #{고가}
+                       , 저가 = #{저가}
+                       , 거래량  = #{거래량}
+                 WHERE 종목코드 = #{종목코드}
+                   AND 날짜 = #{날짜}
+    </update>
+
+    <select id="selectVolumeCnt" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM 거래량 WHERE 종목코드 = #{종목코드} AND 날짜 = #{날짜}
+    </select>
+
+    <select id="selectVolumeList" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT 종목코드, 날짜 FROM 거래량 WHERE 5일선 IS NULL
+    </select>
+
+    <update id="updateMa" parameterType="java.util.Map">
+        <![CDATA[
+        UPDATE 거래량 SET 5일선 = (
+                                        SELECT ROUND(AVG(종가), 0)
+                                        FROM(
+                                                SELECT *
+                                                FROM 거래량
+                                                WHERE 종목코드 = #{종목코드}
+                                                AND 날짜 <= #{날짜}
+                                                ORDER BY 날짜 DESC
+                                                LIMIT 0, 5
+                                        ) A
+                                )
+                       ,10일선 = (
+                                        SELECT ROUND(AVG(종가), 0)
+                                        FROM(
+                                                SELECT *
+                                                FROM 거래량
+                                                WHERE 종목코드 = #{종목코드}
+                                                AND 날짜 <= #{날짜}
+                                                ORDER BY 날짜 DESC
+                                                LIMIT 0, 10
+                                        ) A
+                                )
+                       ,20일선 = (
+                                        SELECT ROUND(AVG(종가), 0)
+                                        FROM(
+                                                SELECT *
+                                                FROM 거래량
+                                                WHERE 종목코드 = #{종목코드}
+                                                AND 날짜 <= #{날짜}
+                                                ORDER BY 날짜 DESC
+                                                LIMIT 0, 20
+                                        ) A
+                                )
+                       ,60일선 =(
+                                        SELECT ROUND(AVG(종가), 0)
+                                        FROM(
+                                                SELECT *
+                                                FROM 거래량
+                                                WHERE 종목코드 = #{종목코드}
+                                                AND 날짜 <= #{날짜}
+                                                ORDER BY 날짜 DESC
+                                                LIMIT 0, 60
+                                        ) A
+                                )
+                       ,120일선 =(
+                                        SELECT ROUND(AVG(종가), 0)
+                                        FROM(
+                                                SELECT *
+                                                FROM 거래량
+                                                WHERE 종목코드 = #{종목코드}
+                                                AND 날짜 <= #{날짜}
+                                                ORDER BY 날짜 DESC
+                                                LIMIT 0, 120
+                                        ) A
+                                )
+                 WHERE 종목코드 = #{종목코드}
+                   AND 날짜 = #{날짜}
+        ]]>
+    </update>
+
+    <update id="updteVolume02" parameterType="java.util.Map">
+        INSERT INTO 거래량(종목코드, 날짜, 전일대비, 종가, 시가, 고가, 저가, 거래량)
+                   VALUES(#{종목코드}, #{날짜}, #{전일대비}, ROUND(#{종가}, 0), ROUND(#{시가}, 0), ROUND(#{고가}, 0), ROUND(#{저가}, 0), #{거래량})
+        ON DUPLICATE KEY UPDATE
+        전일대비 = #{전일대비}
+        , 종가 = ROUND(#{종가}, 0)
+        , 시가 = ROUND(#{시가}, 0)
+        , 고가 = ROUND(#{고가}, 0)
+        , 저가 = ROUND(#{저가}, 0)
+        , 거래량  = ROUND(#{거래량}, 0)
+
+    </update>
+
+    <select id="selectMa" parameterType="java.util.Map" resultType="java.lang.String">
+        <![CDATA[
+        SELECT AVG(종가)
+        FROM(
+                SELECT *
+                FROM 거래량
+                WHERE 종목코드 = #{종목코드}
+                  AND 날짜 <= #{날짜}
+                ORDER BY 날짜 DESC
+                LIMIT 0, #{num, jdbcType=INTEGER}
+            ) A
+        ]]>
+    </select>
+
+    <select id="algorithm001" parameterType="java.util.Map" resultType="java.util.Map">
+        <![CDATA[
+
+        SELECT B.기업명
+             , A.종목코드
+             , A.날짜
+             , A.종가 AS 금액
+        FROM 거래량 A,
+            상장기업 B
+        WHERE A.`종목코드` = B.`종목코드`
+          AND 날짜 = (SELECT MAX(날짜) FROM 거래량)
+          AND 종가 BETWEEN (5일선 -  (종가 * 0.05)) AND (5일선 +  (종가  * 0.05))
+          AND 종가 BETWEEN (10일선 - (종가 * 0.05)) AND (10일선 + (종가  * 0.05))
+          AND 종가 BETWEEN (20일선 - (종가 * 0.05)) AND (20일선 + (종가  * 0.05))
+          AND 종가 BETWEEN (60일선 - (종가 * 0.05)) AND (60일선 + (종가  * 0.05))
+          AND A.종목코드 IN (
+                            SELECT 종목코드
+                              FROM 거래량 A
+                             WHERE 날짜 = (SELECT MAX(날짜) FROM 거래량)
+                               AND 5일선 >= 10일선
+                               AND 10일선 >= 20일선
+                               AND 20일선 >= 60일선
+                               AND 60일선 >= 120일선
+                            )
+          AND  거래량 > 1000000
+          ORDER BY 거래량 DESC
+        ]]>
+    </select>
+
+    <insert id="insertRecommend" parameterType="java.util.Map">
+        INSERT INTO t추천종목 (종목코드, 날짜, 알고리즘)
+                     VALUES (#{종목코드}, #{날짜}, #{알고리즘})
+        ON DUPLICATE KEY UPDATE 종목코드 = #{종목코드}, 날짜 = #{날짜}, 알고리즘 = #{알고리즘}
+
+
+    </insert>
+    <update id="updateRecommend" parameterType="java.util.Map">
+        UPDATE t추천종목 SET 추천유무 = 'N'
+                    WHERE 종목코드 = #{종목코드}
+                      AND 날짜 = #{날짜}
+    </update>
+
+    <select id="selectRecommend" parameterType="java.util.Map" resultType="java.util.Map">
+        <![CDATA[
+        SELECT A.종목코드
+             , B.기업명 AS 종목명
+          FROM t추천종목 A
+          INNER JOIN 상장기업 B ON A.`종목코드` = B.`종목코드`
+           WHERE A.추천유무 = 'N'
+        ]]>
+    </select>
+    
+    <insert id="insertRate" parameterType="java.util.Map">
+        <![CDATA[
+            INSERT INTO t수익률(종목코드, 추천일자, 시작일자, 추천금액, 시작금액)
+                        VALUES(#{종목코드}, #{추천일자}, #{시작일자}, #{추천금액}, #{시작금액})
+        ]]>
+    </insert>
+
+    <update id="updateRate" parameterType="java.util.Map">
+            UPDATE t수익률 SET 진행일자 = #{진행일자}
+                            , 수익률 = #{수익률}
+                            , 진행금액=#{진행금액}
+                              WHERE 종목코드 = #{종목코드}
+                                AND 종료유무 = 'N'
+    </update>
+
+    <select id="selectMaxDate" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT *
+        FROM 거래량
+        WHERE 종목코드 = #{종목코드}
+        AND 날짜 = (SELECT MAX(날짜) FROM 거래량 WHERE 종목코드 = #{종목코드})
+
+
+    </select>
+
+    <select id="selectRate" parameterType="java.util.Map" resultType="java.util.Map">
+        <![CDATA[
+        SELECT *
+          FROM t수익률
+        WHERE 종목코드 = #{종목코드}
+          AND 추천일자 < #{날짜}
+          AND 종료유무 = 'N'
+          ]]>
+    </select>
+
+    <select id="selectRateResult" parameterType="java.util.Map" resultType="java.util.Map">
+        <![CDATA[
+            SELECT A.종목코드
+                  , B.기업명 AS 종목명
+			      , A.종료유무
+				  , A.추천일자
+				  , A.시작일자
+			      , A.추천금액
+				  , A.시작금액
+				  , A.진행일자
+				  , A.수익률
+				  , A.진행금액
+            FROM T수익률 A
+            INNER JOIN 상장기업 B ON A.`종목코드` = B.`종목코드`
+          WHERE 종료유무 = 'N'
+            AND 추천금액 IS NOT NULL
+			 ORDER BY 시작일자 ASC
+        ]]>
+
+    </select>
+
+    <select id="selectTodayRising" resultType="java.util.Map" parameterType="java.util.Map">
+        <![CDATA[
+            SELECT *
+            FROM(
+            SELECT B.`기업명`
+            , B.종목코드
+            , SUM(ROUND((전일대비  / (종가 - 전일대비))  * 100, 0)) AS PERSENT
+            FROM 거래량 A
+            INNER JOIN 상장기업 B ON A.`종목코드` = B.`종목코드`
+         ]]>
+            <choose>
+                <when test='type == "KOSPI200"'>AND B.KOSPI200 = 'Y'</when>
+                <when test='type == "KOSDAQ"'>AND B.KOSDAQ = 'Y'</when>
+                <when test='type == "KOSPI"'>AND B.KOSPI = 'Y'</when>
+            </choose>
+        <![CDATA[
+            WHERE 날짜 BETWEEN #{sDate} AND #{eDate}
+            GROUP BY B.`기업명`, B.종목코드
+            )T5 WHERE PERSENT > 0 ORDER BY PERSENT DESC
+        ]]>
+    </select>
+
+    <select id="selectListChartData" parameterType="java.util.Map" resultType="java.util.Map">
+
+        SELECT DATE_FORMAT(STR_TO_DATE(A.날짜,'%Y%m%d'), '%Y') AS Y1
+              ,DATE_FORMAT(STR_TO_DATE(A.날짜,'%Y%m%d'), '%c') - 1 AS M1
+              ,DATE_FORMAT(STR_TO_DATE(A.날짜,'%Y%m%d'), '%e') AS D1
+              ,종가
+          FROM 거래량 A
+        WHERE A.날짜 BETWEEN #{sDate} AND #{eDate}
+          AND A.종목코드 = #{종목코드}
+
+    </select>
+
+    <select id="selectCompayInfo" parameterType="java.lang.String" resultType="java.util.Map">
+        SELECT *
+          FROM 상장기업
+        WHERE 종목코드 = #{종목코드}
+    </select>
+
+</mapper>
