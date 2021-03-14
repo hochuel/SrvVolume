@@ -19,13 +19,6 @@ public class SrvVolumeApplication {
     public static void main(String[] args) throws Exception {
         SpringApplication.run(SrvVolumeApplication.class, args);
 
-        //log.info("회사정보가져오기 시작");
-        //VolumeService volumeService = (VolumeService) BeanUtils.getBean("volumeService");
-        //volumeService.getCompanyList();
-
-        //volumeService.getVolumeList();
-        //log.info("회사정보가져오기 끝.");
-
         int threadCnt = 50;//Runtime.getRuntime().availableProcessors();
 
         ExecutorService executorService = Executors.newFixedThreadPool(threadCnt);
@@ -33,5 +26,4 @@ public class SrvVolumeApplication {
             executorService.execute(new StockBot("thread_" + i));
         }
     }
-
 }
